@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chase Offers Auto-Add
 // @namespace    https://github.com/mobility22
-// @version      1.2
+// @version      1.3
 // @description  Clicks visible Chase offer "Add"/"Activate" buttons once per page load, with a delay and a max-clicks limit.
 // @match        *://*.chase.com/*
 // @match        *://chase.com/*
@@ -25,9 +25,28 @@
   // Words that mean "add this offer" (case-insensitive)
   const ACTION_RE = /^(\+|add( to card| offer)?|activate( offer)?|claim( offer)?|enroll)$/i;
   // Words to never click
-  const SKIP_RE = /(remove|added|activated|enrolled|cancel|sign out|log ?out|pay|transfer|delete)/i;
+  const SKIP_RE = /(remove|added|activated|enrolled|cancel|sign ?(in|out|on)|log ?(in|on|out)|password|username|pay|transfer|delete)/i;
 
-  console.log('[Chase Offers Auto-Add] v1.2 loaded on', location.hostname);
+  console.log('[Chase Offers Auto-Add] v1.3 loaded on', location.hostname);
+
+  // ---- Never touch login pages: only run when already signed in ----
+  function onLoginPage() {
+    if (/(logon|login|signin|sign-in|auth\/logon)/i.test(location.pathname + location.hash)) return true;
+    if (document.querySelector('input[type="password"], #userId, #userId-text-input-field, #password-text-input-field, form[name*="logon" i], form[action*="logon" i]')) return true;
+    return false;
+  }
+  function showNote(msg) {
+    const n = document.createElement('div');
+    n.textContent = msg;
+    n.style.cssText = 'position:fixed;bottom:12px;right:12px;z-index:2147483647;background:#555;color:#fff;' +
+      'font:12px sans-serif;padding:6px 9px;border-radius:5px;opacity:.85';
+    document.body.appendChild(n);
+    setTimeout(() => n.remove(), 4000);
+  }
+  if (onLoginPage()) {
+    showNote('Chase Offers: sign-in page, script not running');
+    return;
+  }
 
   let clicks = 0;
   let running = true;
@@ -75,10 +94,12 @@
   }
 
   async function run() {
+    if (onLoginPage()) { running = false; refresh('sign-in page, stopped'); return; }
     const buttons = findOfferButtons();
     if (!buttons.length) { refresh('none found'); }
     for (const el of buttons) {
       if (!running || clicks >= MAX_CLICKS) break;
+      if (onLoginPage()) { running = false; refresh('sign-in page, stopped'); return; }
       done.add(el);
       el.scrollIntoView({ block: 'center' });
       await sleep(300);

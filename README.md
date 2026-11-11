@@ -18,6 +18,8 @@ The script header sets `@updateURL` and `@downloadURL` to the raw file on `main`
 
 ## Safety limits
 
+- Never logs in or touches sign-in forms. If the page is a sign-in page (login URL or a password/user ID field), it does nothing and shows a short note. Sign in to Chase yourself first.
+
 - Waits 4 seconds after the page loads before starting.
 - 1.5 seconds between clicks.
 - At most 100 clicks per page load.
