@@ -22,7 +22,7 @@ The script header sets `@updateURL` and `@downloadURL` to the raw file on `main`
 
 - Waits 4 seconds after the page loads before starting.
 - 1.5 seconds between clicks.
-- Reads the "N results" count (use the *Not added* filter) and clicks the first "+" offer button repeatedly, going back to the list if a click opens another view, until the count reaches 0 or it has clicked N times. The panel shows how many are left.
+- On load, ticks the *Not added* offer-status filter (and unticks *Added to card*) if needed, then reads the "N results" count and clicks the first "+" offer button repeatedly, going back to the list if a click opens another view, until the count reaches 0 or it has clicked N times. The panel shows how many are left.
 - At most 100 clicks per page load.
 - Never clicks buttons whose text includes Remove, Added, Activated, Enrolled, Cancel, Sign out, Pay, Transfer, or Delete.
 - **Stop / Start** button on the on-page panel.

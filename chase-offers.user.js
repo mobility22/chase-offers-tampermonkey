@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chase Offers Auto-Add
 // @namespace    https://github.com/mobility22
-// @version      1.6
+// @version      1.7
 // @description  Clicks visible Chase offer "Add"/"Activate" buttons once per page load, with a delay and a max-clicks limit.
 // @match        *://*.chase.com/*
 // @match        *://chase.com/*
@@ -27,7 +27,7 @@
   // Words to never click
   const SKIP_RE = /(remove|added|activated|enrolled|cancel|sign ?(in|out|on)|log ?(in|on|out)|password|username|pay|transfer|delete)/i;
 
-  const VERSION = (typeof GM_info !== 'undefined' && GM_info.script && GM_info.script.version) || '1.6';
+  const VERSION = (typeof GM_info !== 'undefined' && GM_info.script && GM_info.script.version) || '1.7';
   console.log('[Chase Offers Auto-Add] v' + VERSION + ' loaded on', location.hostname);
 
   // ---- Never touch login pages: only run when already signed in ----
@@ -139,11 +139,65 @@
     return null;
   }
 
+  // ---- Make sure only the "Not added" offer-status filter is selected ----
+  function labelTextFor(input) {
+    const root = input.getRootNode();
+    let t = '';
+    if (input.id && root.querySelector) {
+      const l = root.querySelector(`label[for="${CSS.escape(input.id)}"]`);
+      if (l) t = l.innerText || l.textContent || '';
+    }
+    if (!t) { const l = input.closest('label'); if (l) t = l.innerText || l.textContent || ''; }
+    if (!t) t = input.getAttribute('aria-label') || '';
+    if (!t) {
+      const host = root.host;   // checkbox inside a web component
+      if (host) t = host.getAttribute('label') || host.innerText || host.textContent || '';
+    }
+    return t.replace(/\s+/g, ' ').trim();
+  }
+
+  function findStatusBox(re) {
+    const boxes = deepQueryAll('input[type="checkbox"], [role="checkbox"]');
+    return boxes.find((b) => re.test(labelTextFor(b))) || null;
+  }
+
+  function isChecked(b) {
+    return b.checked === true || b.getAttribute('aria-checked') === 'true';
+  }
+
+  async function ensureNotAddedFilter() {
+    let changed = false;
+    const notAdded = await waitFor(() => findStatusBox(/^not added\b/i), 8000);
+    if (!notAdded) { console.log('[Chase Offers Auto-Add] Not added filter not found'); return false; }
+    if (!isChecked(notAdded)) {
+      refresh('selecting Not added');
+      notAdded.click();
+      changed = true;
+      await waitFor(() => isChecked(notAdded), 4000);
+      await sleep(CLICK_DELAY_MS);
+    }
+    const added = findStatusBox(/^added to card\b/i);
+    if (added && isChecked(added)) {
+      refresh('clearing Added to card');
+      added.click();
+      changed = true;
+      await waitFor(() => !isChecked(added), 4000);
+      await sleep(CLICK_DELAY_MS);
+    }
+    if (changed) await sleep(2000);   // let the offer grid and count refresh
+    console.log('[Chase Offers Auto-Add] Not added filter', changed ? 'selected' : 'already set');
+    return true;
+  }
+
   let target = null;       // how many to click, from the page count
   let listUrl = null;
 
   async function run() {
     if (onLoginPage()) { running = false; refresh('sign-in page, stopped'); return; }
+    if (target === null) {
+      await ensureNotAddedFilter();
+      if (!running) return;
+    }
     if (listUrl === null) listUrl = location.href;
     if (target === null) {
       const c = readCount();
