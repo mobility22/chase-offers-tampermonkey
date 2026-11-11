@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chase Offers Auto-Add
 // @namespace    https://github.com/mobility22
-// @version      1.4
+// @version      1.5
 // @description  Clicks visible Chase offer "Add"/"Activate" buttons once per page load, with a delay and a max-clicks limit.
 // @match        *://*.chase.com/*
 // @match        *://chase.com/*
@@ -27,7 +27,7 @@
   // Words to never click
   const SKIP_RE = /(remove|added|activated|enrolled|cancel|sign ?(in|out|on)|log ?(in|on|out)|password|username|pay|transfer|delete)/i;
 
-  console.log('[Chase Offers Auto-Add] v1.4 loaded on', location.hostname);
+  console.log('[Chase Offers Auto-Add] v1.5 loaded on', location.hostname);
 
   // ---- Never touch login pages: only run when already signed in ----
   function onLoginPage() {
@@ -116,25 +116,62 @@
     });
   }
 
+  // Read the "N results" count shown above the offer grid (e.g. with the "Not added" filter)
+  function readCount() {
+    const m = (document.body.innerText || '').match(/\b(\d{1,3})\s+results?\b/i);
+    return m ? parseInt(m[1], 10) : null;
+  }
+
+  // The first (top-left) offer "+" button: after each add, the next offer takes its place
+  function firstOfferButton() {
+    const btns = findOfferButtons();
+    btns.sort((x, y) => {
+      const a = x.getBoundingClientRect(), b = y.getBoundingClientRect();
+      return (a.top - b.top) || (a.left - b.left);
+    });
+    return btns[0] || null;
+  }
+
+  async function waitFor(fn, ms) {
+    const end = Date.now() + ms;
+    while (Date.now() < end) { const v = fn(); if (v) return v; await sleep(250); }
+    return null;
+  }
+
+  let target = null;       // how many to click, from the page count
+  let listUrl = null;
+
   async function run() {
     if (onLoginPage()) { running = false; refresh('sign-in page, stopped'); return; }
-    const buttons = findOfferButtons();
-    console.log('[Chase Offers Auto-Add] candidate buttons:', buttons.length);
-    if (!buttons.length) { refresh('none found'); if (!REPEAT && retries++ < 3) setTimeout(() => { if (running && !clicks) run(); }, RESCAN_MS); }
-    for (const el of buttons) {
-      if (!running || clicks >= MAX_CLICKS) break;
+    if (listUrl === null) listUrl = location.href;
+    if (target === null) {
+      const c = readCount();
+      target = Math.min(c === null ? MAX_CLICKS : c, MAX_CLICKS);
+      console.log('[Chase Offers Auto-Add] page count:', c, 'target:', target);
+    }
+    while (running && clicks < target && clicks < MAX_CLICKS) {
       if (onLoginPage()) { running = false; refresh('sign-in page, stopped'); return; }
-      done.add(el);
+      const left = readCount();
+      if (left === 0) break;
+      refresh(`${left === null ? '?' : left} left`);
+      const el = await waitFor(firstOfferButton, 6000);
+      if (!el) { refresh('no + button found'); break; }
       el.scrollIntoView({ block: 'center' });
       await sleep(300);
       el.click();
       clicks++;
-      refresh();
+      refresh(`${readCount() ?? '?'} left`);
       await sleep(CLICK_DELAY_MS);
+      // If the click opened another view, go back to the offer list
+      if (location.href !== listUrl) {
+        history.back();
+        await waitFor(() => location.href === listUrl, 5000);
+        await sleep(CLICK_DELAY_MS);
+      }
     }
-    if (clicks >= MAX_CLICKS) { running = false; refresh('limit reached'); return; }
-    if (REPEAT && running) { setTimeout(run, RESCAN_MS); }
-    else { refresh('done'); }
+    running = false;
+    const left = readCount();
+    refresh(clicks >= MAX_CLICKS ? 'limit reached' : `done, ${left === null ? '?' : left} left`);
   }
 
   setTimeout(run, START_WAIT_MS);
