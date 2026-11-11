@@ -49,6 +49,7 @@
   }
 
   let clicks = 0;
+  let retries = 0;
   let running = true;
   const done = new WeakSet();
 
@@ -119,7 +120,7 @@
     if (onLoginPage()) { running = false; refresh('sign-in page, stopped'); return; }
     const buttons = findOfferButtons();
     console.log('[Chase Offers Auto-Add] candidate buttons:', buttons.length);
-    if (!buttons.length) { refresh('none found'); if (!REPEAT) setTimeout(() => { if (running && !clicks) run(); }, RESCAN_MS); }
+    if (!buttons.length) { refresh('none found'); if (!REPEAT && retries++ < 3) setTimeout(() => { if (running && !clicks) run(); }, RESCAN_MS); }
     for (const el of buttons) {
       if (!running || clicks >= MAX_CLICKS) break;
       if (onLoginPage()) { running = false; refresh('sign-in page, stopped'); return; }
