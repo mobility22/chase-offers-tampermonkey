@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chase Offers Auto-Add
 // @namespace    https://github.com/mobility22
-// @version      1.3
+// @version      1.4
 // @description  Clicks visible Chase offer "Add"/"Activate" buttons once per page load, with a delay and a max-clicks limit.
 // @match        *://*.chase.com/*
 // @match        *://chase.com/*
@@ -27,7 +27,7 @@
   // Words to never click
   const SKIP_RE = /(remove|added|activated|enrolled|cancel|sign ?(in|out|on)|log ?(in|on|out)|password|username|pay|transfer|delete)/i;
 
-  console.log('[Chase Offers Auto-Add] v1.3 loaded on', location.hostname);
+  console.log('[Chase Offers Auto-Add] v1.4 loaded on', location.hostname);
 
   // ---- Never touch login pages: only run when already signed in ----
   function onLoginPage() {
@@ -78,25 +78,48 @@
       !el.disabled && el.getAttribute('aria-disabled') !== 'true';
   }
 
+  // Collect elements, including inside shadow DOM (Chase uses web components)
+  function deepQueryAll(sel, root = document, out = []) {
+    root.querySelectorAll(sel).forEach((e) => out.push(e));
+    root.querySelectorAll('*').forEach((e) => { if (e.shadowRoot) deepQueryAll(sel, e.shadowRoot, out); });
+    return out;
+  }
+
   function textOf(el) {
-    return (el.getAttribute('aria-label') || el.innerText || el.textContent || '').trim();
+    const parts = [el.getAttribute('aria-label'), el.getAttribute('title'),
+      el.getAttribute('data-testid'), el.innerText || el.textContent];
+    el.querySelectorAll('[aria-label],[title]').forEach((c) =>
+      parts.push(c.getAttribute('aria-label') || c.getAttribute('title')));
+    return parts.filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function isAddIcon(el) {
+    // icon-only "+" button: no visible text, contains an svg/icon whose name hints "add"/"plus"
+    if ((el.innerText || '').trim()) return false;
+    const icon = el.querySelector('svg, mds-icon, i, [class*="icon" i]');
+    if (!icon) return false;
+    const hint = [icon.getAttribute('type'), icon.getAttribute('name'), icon.getAttribute('class'),
+      icon.getAttribute('data-icon'), icon.getAttribute('aria-label'), el.getAttribute('class')].join(' ');
+    return /(add|plus)/i.test(hint);
   }
 
   function findOfferButtons() {
-    const els = document.querySelectorAll('button, a, [role="button"]');
-    return [...els].filter((el) => {
+    const els = deepQueryAll('button, a, [role="button"], mds-button');
+    return els.filter((el) => {
       if (done.has(el) || panel.contains(el) || !isVisible(el)) return false;
       const t = textOf(el);
-      if (!t || SKIP_RE.test(t)) return false;
-      // match the short label, or an aria-label like "Add offer ... to card"
-      return ACTION_RE.test(t) || /^add .*offer|^activate .*offer/i.test(t);
+      if (t && SKIP_RE.test(t)) return false;
+      if (ACTION_RE.test(t)) return true;
+      if (/\badd\b.*\b(offer|card)\b|\b(offer|card)\b.*\badd\b|add-?offer|addoffer/i.test(t)) return true;
+      return isAddIcon(el);
     });
   }
 
   async function run() {
     if (onLoginPage()) { running = false; refresh('sign-in page, stopped'); return; }
     const buttons = findOfferButtons();
-    if (!buttons.length) { refresh('none found'); }
+    console.log('[Chase Offers Auto-Add] candidate buttons:', buttons.length);
+    if (!buttons.length) { refresh('none found'); if (!REPEAT) setTimeout(() => { if (running && !clicks) run(); }, RESCAN_MS); }
     for (const el of buttons) {
       if (!running || clicks >= MAX_CLICKS) break;
       if (onLoginPage()) { running = false; refresh('sign-in page, stopped'); return; }
