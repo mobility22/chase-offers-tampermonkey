@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         Chase Offers Auto-Add
 // @namespace    https://github.com/mobility22
-// @version      1.1
+// @version      1.2
 // @description  Clicks visible Chase offer "Add"/"Activate" buttons once per page load, with a delay and a max-clicks limit.
-// @match        https://*.chase.com/*
-// @match        https://chase.com/*
+// @match        *://*.chase.com/*
+// @match        *://chase.com/*
+// @include      /^https?:\/\/([a-z0-9-]+\.)*chase\.com\/.*$/
 // @grant        none
 // @run-at       document-idle
 // @updateURL    https://raw.githubusercontent.com/mobility22/chase-offers-tampermonkey/main/chase-offers.user.js
@@ -25,6 +26,8 @@
   const ACTION_RE = /^(\+|add( to card| offer)?|activate( offer)?|claim( offer)?|enroll)$/i;
   // Words to never click
   const SKIP_RE = /(remove|added|activated|enrolled|cancel|sign out|log ?out|pay|transfer|delete)/i;
+
+  console.log('[Chase Offers Auto-Add] v1.2 loaded on', location.hostname);
 
   let clicks = 0;
   let running = true;
