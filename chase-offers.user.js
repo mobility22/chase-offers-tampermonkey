@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chase Offers Auto-Add
 // @namespace    https://github.com/mobility22
-// @version      1.7
+// @version      1.8
 // @description  Clicks visible Chase offer "Add"/"Activate" buttons once per page load, with a delay and a max-clicks limit.
 // @match        *://*.chase.com/*
 // @match        *://chase.com/*
@@ -27,7 +27,7 @@
   // Words to never click
   const SKIP_RE = /(remove|added|activated|enrolled|cancel|sign ?(in|out|on)|log ?(in|on|out)|password|username|pay|transfer|delete)/i;
 
-  const VERSION = (typeof GM_info !== 'undefined' && GM_info.script && GM_info.script.version) || '1.7';
+  const VERSION = (typeof GM_info !== 'undefined' && GM_info.script && GM_info.script.version) || '1.8';
   console.log('[Chase Offers Auto-Add] v' + VERSION + ' loaded on', location.hostname);
 
   // ---- Never touch login pages: only run when already signed in ----
@@ -51,7 +51,7 @@
 
   let clicks = 0;
   let retries = 0;
-  let running = true;
+  let running = false;   // manual start: nothing happens until you click Start
   const done = new WeakSet();
 
   // ---- Small on-page panel ----
@@ -67,9 +67,14 @@
     label.textContent = `v${VERSION} · Offers: ${clicks} clicked${msg ? ' · ' + msg : ''}`;
     btn.textContent = running ? 'Stop' : 'Start';
   };
-  btn.onclick = () => { running = !running; refresh(); if (running) run(); };
+  btn.onclick = () => {
+    if (running) { running = false; refresh('stopped'); return; }
+    // fresh start each time Start is clicked
+    clicks = 0; target = null; listUrl = null;
+    running = true; refresh('starting…'); run();
+  };
   document.body.appendChild(panel);
-  refresh('waiting…');
+  refresh('click Start');
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -229,5 +234,5 @@
     refresh(clicks >= MAX_CLICKS ? 'limit reached' : `done, ${left === null ? '?' : left} left`);
   }
 
-  setTimeout(run, START_WAIT_MS);
+  // No auto-start (v1.8): the loop runs only after you click Start.
 })();

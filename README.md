@@ -20,7 +20,7 @@ The script header sets `@updateURL` and `@downloadURL` to the raw file on `main`
 
 - Never logs in or touches sign-in forms. If the page is a sign-in page (login URL or a password/user ID field), it does nothing and shows a short note. Sign in to Chase yourself first.
 
-- Waits 4 seconds after the page loads before starting.
+- Does nothing until you click **Start** on the blue panel (v1.8+). Click **Stop** any time to halt it.
 - 1.5 seconds between clicks.
 - On load, ticks the *Not added* offer-status filter (and unticks *Added to card*) if needed, then reads the "N results" count and clicks the first "+" offer button repeatedly, going back to the list if a click opens another view, until the count reaches 0 or it has clicked N times. The panel shows how many are left.
 - At most 100 clicks per page load.
