@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chase Offers Auto-Add
 // @namespace    https://github.com/mobility22
-// @version      1.8
+// @version      1.9
 // @description  Clicks visible Chase offer "Add"/"Activate" buttons once per page load, with a delay and a max-clicks limit.
 // @match        *://*.chase.com/*
 // @match        *://chase.com/*
@@ -27,7 +27,7 @@
   // Words to never click
   const SKIP_RE = /(remove|added|activated|enrolled|cancel|sign ?(in|out|on)|log ?(in|on|out)|password|username|pay|transfer|delete)/i;
 
-  const VERSION = (typeof GM_info !== 'undefined' && GM_info.script && GM_info.script.version) || '1.8';
+  const VERSION = (typeof GM_info !== 'undefined' && GM_info.script && GM_info.script.version) || '1.9';
   console.log('[Chase Offers Auto-Add] v' + VERSION + ' loaded on', location.hostname);
 
   // ---- Never touch login pages: only run when already signed in ----
@@ -66,6 +66,9 @@
   const refresh = (msg) => {
     label.textContent = `v${VERSION} · Offers: ${clicks} clicked${msg ? ' · ' + msg : ''}`;
     btn.textContent = running ? 'Stop' : 'Start';
+    btn.style.cssText = 'margin-left:8px;cursor:pointer;font:bold 13px sans-serif;border-radius:4px;padding:3px 12px;' +
+      (running ? 'background:#fff;color:#333;border:1px solid #ccc'
+               : 'background:#22c55e;color:#fff;border:2px solid #fff;box-shadow:0 0 6px #22c55e');
   };
   btn.onclick = () => {
     if (running) { running = false; refresh('stopped'); return; }
